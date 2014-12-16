@@ -129,7 +129,7 @@ class EventLoop(object):
 	def __init__(self):
 		logging.debug('EventLoop init')
 		if hasattr(select, 'epoll'):
-			self._impl = EpollLoop
+			self._impl = EpollLoop()
 			model = 'epoll'
 		elif hasattr(select, 'kqueue'):
 			self._impl = KqueueLoop()
@@ -181,7 +181,8 @@ class EventLoop(object):
 		events = []
 		while self._ref_handlers:
 			try:
-				events = self.poll(1)
+				events = self.poll(5)
+				logging.debug('events:%s', events)
 			except (OSError, IOError) as e:
 				if errno_from_exception(e) in (errno.EPIPE, errno.EINTR):
 					logging.debug('poll:%s', e)

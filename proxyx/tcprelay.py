@@ -9,6 +9,7 @@ import traceback
 import random
 
 from proxyx import eventloop, utils
+from modules import prepull
 
 
 TIMEOUTS_CLEAN_SIZE = 512
@@ -20,43 +21,9 @@ CMD_CONNECT = 1
 CMD_BIND = 2
 CMD_UDP_ASSOCIATE = 3
 
-# local:
-# stage 0 init
-# stage 1 hello received, hello sent
-# stage 2 UDP assoc
-# stage 3 DNS
-# stage 4 addr received, reply sent
-# stage 5 remote connected
 
-# remote:
-# stage 0 init
-# stage 3 DNS
-# stage 4 addr received, reply sent
-# stage 5 remote connected
 
-STAGE_INIT = 0
-STAGE_HELLO = 1
-STAGE_UDP_ASSOC = 2
-STAGE_DNS = 3
-STAGE_REPLY = 4
-STAGE_STREAM = 5
-STAGE_DESTROYED = -1
 
-# stream direction
-STREAM_UP = 0
-STREAM_DOWN = 1
-
-# stream wait status
-WAIT_STATUS_INIT = 0
-WAIT_STATUS_READING = 1
-WAIT_STATUS_WRITING = 2
-WAIT_STATUS_READWRITING = WAIT_STATUS_READING | WAIT_STATUS_WRITING
-
-BUF_SIZE = 32 * 1024
-
-class TCPRelayHandler(object):
-	def __init__(self, server, fd_to_handlers, loop, local_sock, config, dns_resolver, is_local):
-		pass
 
 
 class TCPRelay(object):
@@ -164,6 +131,7 @@ class TCPRelay(object):
 	def _handle_events(self, events):
 		for sock, fd, event in events:
 			if sock:
+				logging.debug("TCPRelay _handle_events:[fd:%d], [event:%d]", fd, event)
 				logging.log(utils.VERBOSE_LEVEL, 'fd %d %s', fd, eventloop.EVENT_NAMES.get(event, event))
 			if sock == self._server_socket:
 				if event & eventloop.POLL_ERR:
@@ -171,7 +139,7 @@ class TCPRelay(object):
 				try:
 					logging.debug('accept')
 					conn = self._server_socket.accept()
-					TCPRelayHandler(self, self._fd_to_handlers,
+					prepull.TCPRelayHandler(self, self._fd_to_handlers,
 									self._eventloop, conn[0], self._config,
 									self._dns_resolver, self._is_local)
 				except (OSError, IOError) as e:
@@ -186,7 +154,7 @@ class TCPRelay(object):
 				if sock:
 					handler = self._fd_to_handlers.get(fd, None)
 					if handler:
-						handler.handler_event(sock, event)
+						handler.handle_event(sock, event)
 				else:
 					logging.warn('poll removed fd')
 		now = time.time()
