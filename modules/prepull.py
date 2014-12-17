@@ -13,7 +13,7 @@ import random
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '../'))
 from proxyx import eventloop, utils
-
+from modules import httpx
 
 TIMEOUTS_CLEAN_SIZE = 512
 TIMEOUT_PRECISION = 4
@@ -58,6 +58,8 @@ WAIT_STATUS_READWRITING = WAIT_STATUS_READING | WAIT_STATUS_WRITING
 BUF_SIZE = 32 * 1024
 class TCPRelayHandler(object):
 	def __init__(self, server, fd_to_handlers, loop, local_sock, config, dns_resolver, is_local):
+		self._request = httpx.HTTPX()
+		self._response = httpx.HTTPX()
 		self._server = server
 		self._fd_to_handlers = fd_to_handlers
 		self._loop = loop
@@ -103,6 +105,28 @@ class TCPRelayHandler(object):
 	# message from downstream
 	def _on_local_read(self):
 		logging.debug('_on_local_read')
+		self._update_activity()
+		if not self._local_sock:
+			return
+		is_local = self._is_local
+		data = None
+		try:
+			data = self._local_sock.recv(BUF_SIZE)
+		except (OSError, IOError) as e:
+			if eventloop.errno_from_exception(e) in (errno.ETIMEDOUT, errno.EAGAIN, errno.EWOULDBLOCK):
+				return
+		if not data:
+			self.destroy()
+			return
+		if self._request.check_header() == False:
+			logging.debug('parse')
+			self._request.parse(data)
+			if self._request.check_header() == True:
+				logging.debug('send after parse')
+				self._request.get_host_address_and_port()
+		else:
+			logging.debug('send')
+			self._request.get_host_address_and_port()
 		
 
 	def _on_local_write(self):
@@ -111,7 +135,7 @@ class TCPRelayHandler(object):
 
 	def _on_local_error(self):
 		logging.debug('_on_local_error')
-		
+
 
 
 	def handle_event(self, sock, event):
@@ -145,3 +169,27 @@ class TCPRelayHandler(object):
 				self._on_local_write()
 		else:
 			logging.warn('unknown socket')
+
+	def destroy(self):
+		if self._stage == STAGE_DESTROYED:
+			logging.debug('already destriyed')
+			return
+		self._stage = STAGE_DESTROYED
+		if self._remote_address:
+			logging.debug('destroy:%s : %d' %self._remote_address)
+		else:
+			logging.debug('destroy')
+		if self._remote_sock:
+			logging.debug('destroying remote')
+			self._loop.remove(self._remote_sock)
+			del self._fd_to_handlers[self._remote_sock.fileno()]
+			self._local_sock.close()
+			self._local_sock = None
+		self._dns_resolver.remove_callback(self._handle_dns_resolved)
+		self._server.remove_handler(self)
+
+
+
+
+
+

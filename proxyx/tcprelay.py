@@ -104,10 +104,14 @@ class TCPRelay(object):
 			now = time.time()
 			length = len(self._timeouts)
 			pos = self._timeout_offset
+			handler = None
+			logging.debug('pos:%d length:%d', pos, length)
 			while pos < length:
 				handler = self._timeouts[pos]
+
 				if handler:
-					if now - hanlder.last_activity < self._timeout:
+
+					if now - handler.last_activity < self._timeout:
 						break
 					else:
 						if handler.remote_address:
@@ -131,7 +135,7 @@ class TCPRelay(object):
 	def _handle_events(self, events):
 		for sock, fd, event in events:
 			if sock:
-				logging.debug("TCPRelay _handle_events:[fd:%d], [event:%d]", fd, event)
+				#logging.debug("TCPRelay _handle_events:[fd:%d], [event:%d]", fd, event)
 				logging.log(utils.VERBOSE_LEVEL, 'fd %d %s', fd, eventloop.EVENT_NAMES.get(event, event))
 			if sock == self._server_socket:
 				if event & eventloop.POLL_ERR:

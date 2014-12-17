@@ -13,6 +13,12 @@ from proxyx import utils, eventloop, asyncdns, tcprelay
 def main():
 	config = utils.get_config()
 
+	datas = ''
+
+	datas += 'sdfgsd'
+	datas += 'asyncdns'
+	logging.debug(len(datas))
+
 	logging.debug('server main()')
 
 	dns_resolver = asyncdns.DNSResolver()
