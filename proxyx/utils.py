@@ -7,7 +7,7 @@ import logging
 VERBOSE_LEVEL = 5
 
 def get_config():
-	logging.basicConfig(level=logging.DEBUG,
+	logging.basicConfig(level=logging.INFO,
 						format='%(levelname)-s: %(message)s')
 	config = {}
 	config['workers'] = 1;

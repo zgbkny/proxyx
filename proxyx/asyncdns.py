@@ -285,7 +285,9 @@ class DNSResolver(object):
         # TODO parse /etc/gai.conf and follow its rules
 
     def _parse_resolv(self):
-        self._servers = []
+        self._servers = ['192.168.0.1']
+        return 
+        
         try:
             with open('/etc/resolv.conf', 'rb') as f:
                 content = f.readlines()
@@ -303,7 +305,7 @@ class DNSResolver(object):
         except IOError:
             pass
         if not self._servers:
-            self._servers = ['8.8.4.4', '8.8.8.8']
+            self._servers = ['192.168.0.1']
 
     def _parse_hosts(self):
         etc_path = '/etc/hosts'

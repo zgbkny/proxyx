@@ -79,7 +79,7 @@ class TCPRelay(object):
 
 		self._eventloop.add(self._server_socket, eventloop.POLL_IN | eventloop.POLL_ERR)
 
-	def remove_hanlder(self, handler):
+	def remove_handler(self, handler):
 		index = self._handler_to_timeouts.get(hash(handler), -1)
 		if index >= 0:
 			#delete is O(n), so we just set it to None

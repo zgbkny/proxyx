@@ -182,7 +182,7 @@ class EventLoop(object):
 		while self._ref_handlers:
 			try:
 				events = self.poll(5)
-				
+				logging.info('poll')
 			except (OSError, IOError) as e:
 				if errno_from_exception(e) in (errno.EPIPE, errno.EINTR):
 					logging.debug('poll:%s', e)
