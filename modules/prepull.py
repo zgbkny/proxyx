@@ -53,7 +53,7 @@ WAIT_STATUS_READING = 1
 WAIT_STATUS_WRITING = 2
 WAIT_STATUS_READWRITING = WAIT_STATUS_READING | WAIT_STATUS_WRITING
 
-BUF_SIZE = 32 * 1024
+BUF_SIZE = 64 * 1024
 
 
 def parse_header(data):
@@ -74,6 +74,7 @@ def parse_header(data):
 
 class TCPRelayHandler(object):
 	def __init__(self, server, fd_to_handlers, loop, local_sock, config, dns_resolver, is_local):
+                self._ttfb = time.time()
 		self._request = httpx.HTTPX()
 		self._response = httpx.HTTPX()
 		self._server = server
@@ -156,7 +157,7 @@ class TCPRelayHandler(object):
 			self.destroy()
 			return
 		if result:
-			ip = result[1]
+			ip = result
 			if ip:
 				try:
 					remote_addr = ip
@@ -204,6 +205,7 @@ class TCPRelayHandler(object):
 		try:
 			l = len(data)
 			s = sock.send(data)
+			#logging.info('>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>data:%d', l-s)
 			if s < l:
 				data = data[s:]
 				uncomplete = True
@@ -250,8 +252,13 @@ class TCPRelayHandler(object):
 			if eventloop.errno_from_exception(e) in (errno.ETIMEDOUT, errno.EAGAIN, errno.EWOULDBLOCK):
 				return
 		if not data:
+                        
 			self.destroy()
 			return
+                if time.time() - self._ttfb >= 1:
+                        logging.info('---------------------------------ttfb:%d', time.time() - self._ttfb)
+                        logging.info(self._host)
+
 		if self._stage == STAGE_HEADER:
 			self._stage = STAGE_RESPONSE_INIT
 		self._data_to_write_to_local.append(data)
@@ -260,7 +267,8 @@ class TCPRelayHandler(object):
 
 	def _on_remote_write(self):
 		logging.debug('_on_remote_write')
-		logging.info('begin:%s', self._remote_address)
+		#logging.info('begin:%s, %d', self._remote_address, time.time() - self._ttfb)
+		#self._ttfb = time.time()
 		self._update_activity()
 		if self._stage == STAGE_INIT:
 			self._stage = STAGE_HEADER
@@ -294,15 +302,22 @@ class TCPRelayHandler(object):
 		if not data:
 			self.destroy()
 			return
-
+                
 		if self._stage == STAGE_INIT:
 			header_result = parse_header(data)
 			if header_result is None:
 				raise Exception('can not parse header')
+			self._host = header_result
 			remote_addr, remote_port = header_result
-			self._remote_address = remote_addr, remote_port
+			#self._remote_address = remote_addr, remote_port
 			self._data_to_write_to_remote.append(data)
-			self._dns_resolver.resolve(self._remote_address[0], self._handle_dns_resolved)
+			#self._dns_resolver.resolve(self._remote_address[0], self._handle_dns_resolved)
+			logging.info(remote_addr)
+			addresses = socket.getaddrinfo(remote_addr, remote_port, 0, 0, socket.SOL_TCP)
+			af, socktype, proto, canonname, sa = addresses[0]
+			self._remote_address = sa
+			self._handle_dns_resolved(sa[0], None)
+
 		elif self._stage == STAGE_HEADER:
 			self._data_to_write_to_remote.append(data)
 			self._on_remote_write()

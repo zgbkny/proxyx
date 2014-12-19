@@ -3,6 +3,7 @@ import socket
 import select
 import errno
 import logging
+import time
 
 from collections import defaultdict
 
@@ -139,7 +140,6 @@ class EventLoop(object):
 			model = 'select'
 		else:
 			raise Exception('can not find any available funtions in select')
-
 		self._fd_to_f = {}
 		self._handlers = []
 		self._ref_handlers = []
@@ -179,10 +179,14 @@ class EventLoop(object):
 
 	def run(self):
 		events = []
+                last_time = time.time()
 		while self._ref_handlers:
 			try:
-				events = self.poll(5)
-				logging.info('poll')
+				events = self.poll(0)
+
+				logging.debug('poll %d', time.time() - last_time)
+				last_time = time.time()
+                
 			except (OSError, IOError) as e:
 				if errno_from_exception(e) in (errno.EPIPE, errno.EINTR):
 					logging.debug('poll:%s', e)

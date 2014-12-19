@@ -81,6 +81,7 @@ class TCPRelay(object):
 
 	def remove_handler(self, handler):
 		index = self._handler_to_timeouts.get(hash(handler), -1)
+		logging.debug('timeouts len:%d, index:%d', len(self._timeouts), index)
 		if index >= 0:
 			#delete is O(n), so we just set it to None
 			self._timeouts[index] = None
@@ -92,6 +93,7 @@ class TCPRelay(object):
 			return
 		handler.last_activity = now
 		index = self._handler_to_timeouts.get(hash(handler), -1)
+		logging.debug('timeouts len:%d, index:%d', len(self._timeouts), index)
 		if index >= 0:
 			self._timeouts[index] = None
 		length = len(self._timeouts)
